@@ -1,0 +1,3 @@
+[submodule "epistrophy"]
+	path = epistrophy
+	url = https://github.com/stcucufa/epistrophy.git
