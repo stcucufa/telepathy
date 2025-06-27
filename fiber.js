@@ -2,7 +2,6 @@ export default class Fiber {
     constructor() {
         this.registers = [];
         this.ops = [];
-        this.stack = [];
     }
 
     op(op, ...args) {
@@ -20,13 +19,8 @@ const Ops = {
     delay(scheduler, a) {
         const dur = this.registers[a];
         if (typeof dur === "number" && dur > 0) {
-            scheduler.setDelayForFiber(this, this.registers[a]);
-            if (this.yielded) {
-                this.unops.push([Ops.undelay, a]);
-            } else {
-                this.now += dur;
-                this.unops.push([Ops.unnow, a]);
-            }
+            delay(this, scheduler, dur);
+            this.unops.push([Ops.undelay, a]);
         }
     },
 
@@ -35,10 +29,13 @@ const Ops = {
     },
 
     undelay(scheduler, a) {
-        scheduler.setDelayForFiber(this, -this.registers[a]);
-    },
-
-    unnow(_, a) {
-        this.now -= this.registers[a];
+        dealy(this, scheduler, -this.registers[a]);
     }
 };
+
+function delay(fiber, scheduler, dur) {
+    scheduler.setDelayForFiber(fiber, dur);
+    if (!fiber.yielded) {
+        fiber.now += dur;
+    }
+}

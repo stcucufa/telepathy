@@ -1,7 +1,7 @@
-import { default as Escheduler } from "./epistrophy/lib/scheduler.js";
+import { default as Epistrophy } from "./epistrophy/lib/scheduler.js";
 import Fiber from "./fiber.js";
 
-export default class Scheduler extends Escheduler {
+export default class Scheduler extends Epistrophy {
     static run() {
         const scheduler = new Scheduler();
         const fiber = new Fiber();
@@ -19,6 +19,23 @@ export default class Scheduler extends Escheduler {
         fiber.ownRate = 1;
         fiber.ip = 0;
         fiber.unops = [];
+    }
+
+    runFiber(fiber) {
+        while (!fiber.yielded) {
+            if (fiber.rate > 0 && fiber.ip < fiber.ops.length) {
+                const [op, ...args] = fiber.ops[fiber.ip++];
+                op.call(fiber, this, ...args);
+            } else if (fiber.rate < 0 && fiber.unip > 0) {
+                const [op, ...args] = fiber.unops[--fiber.unip];
+                op.call(fiber, this, ...args);
+            } else {
+                break;
+            }
+        }
+        if (!fiber.yielded) {
+            this.fiberEnded(fiber);
+        }
     }
 
     // Execute all fibers scheduled in the [begin, end[ interval, then update
@@ -42,20 +59,7 @@ export default class Scheduler extends Escheduler {
                 delete fiber.yielded;
                 fiber.lastUpdateTime = this.now;
                 this.resumeQueues = [[], []];
-                while (!fiber.yielded) {
-                    if (fiber.rate > 0 && fiber.ip < fiber.ops.length) {
-                        const [op, ...args] = fiber.ops[fiber.ip++];
-                        op.call(fiber, this, ...args);
-                    } else if (fiber.rate < 0 && fiber.unip > 0) {
-                        const [op, ...args] = fiber.unops[--fiber.unip];
-                        op.call(fiber, this, ...args);
-                    } else {
-                        break;
-                    }
-                }
-                if (!fiber.yielded) {
-                    this.fiberEnded(fiber);
-                }
+                this.runFiber(fiber);
                 Array.prototype.unshift.apply(queue, this.resumeQueues[1]);
                 Array.prototype.unshift.apply(queue, this.resumeQueues[0]);
             }
